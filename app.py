@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import yfinance as yf
 import numpy as np
-import talib
 
 # Function to get stock data from yfinance
 def get_stock_data(symbol):
@@ -10,15 +9,24 @@ def get_stock_data(symbol):
     data = stock.history(period="1y")  # Get 1 year of historical data
     return data
 
-# Function to calculate RSI using yfinance data
+# Function to calculate RSI manually
 def calculate_rsi(data, period=14):
-    rsi = talib.RSI(data['Close'], timeperiod=period)
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
     return rsi
 
-# Function to calculate Bollinger Bands using yfinance data
+# Function to calculate Bollinger Bands manually
 def calculate_bollinger_bands(data, period=20, nbdevup=2, nbdevdn=2):
-    upperband, middleband, lowerband = talib.BBANDS(data['Close'], timeperiod=period, nbdevup=nbdevup, nbdevdn=nbdevdn, matype=0)
-    return upperband, middleband, lowerband
+    rolling_mean = data['Close'].rolling(window=period).mean()
+    rolling_std = data['Close'].rolling(window=period).std()
+    
+    upperband = rolling_mean + (rolling_std * nbdevup)
+    lowerband = rolling_mean - (rolling_std * nbdevdn)
+    return upperband, lowerband
 
 # Function to analyze stocks
 def analyze_stocks(df, risk_tolerance, time_horizon):
@@ -31,7 +39,7 @@ def analyze_stocks(df, risk_tolerance, time_horizon):
 
             # Technical indicators
             rsi = calculate_rsi(data)
-            upperband, middleband, lowerband = calculate_bollinger_bands(data)
+            upperband, lowerband = calculate_bollinger_bands(data)
 
             # Check if stock meets the fundamental and technical criteria
             # Fundamental criteria
